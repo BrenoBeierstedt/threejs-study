@@ -31,3 +31,4 @@ This repository was bootstrapped with [Vite.js](https://vitejs.dev/).
 ## License
 
 [MIT License](https://github.com/ourcade/threejs-getting-started/blob/master/LICENSE)
+# threejs-study
