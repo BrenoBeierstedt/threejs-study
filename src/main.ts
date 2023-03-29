@@ -3,25 +3,66 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
 
 import * as dat from 'dat.gui' 
-import { LDrawLoader } from 'three/src/extras/loaders/LDrawLoader';
-import { LDrawUtils } from 'three/src/extras/loaders/LDrawUtils';
+
 const renderer = new THREE.WebGLRenderer({
 	canvas: document.getElementById('app') as HTMLCanvasElement
 })
-
-const modelFileList = {
-	'large box': '../assets/box-large.gltf',
-	'arrow': '../assets/arrow.gltf',
-
-};
+const assetLoader = new GLTFLoader();
 
 const objects = [];
 
+// gui 
+
+const modelFileList = {
+	'Barge': '../assets/barge.gltf',
+	'Container ship': '../assets/container_ship.gltf',
+	'Oil tanker': '../assets/oil_tanker.gltf',
+
+};
+type DayTimeList = {
+	'Sunrise': object,
+	'Noon': object,
+	'Sunset': object,
+	'Night': object,
+
+};
+const dayTimeList = {
+	'Sunrise': { 'skyColor': 0xff6700, 'groundColor': 0x118aaf},
+	'Noon': { 'skyColor': 0xffffff, 'groundColor': 0x57B8BC},
+	'Sunset': { 'skyColor': 0xff6700, 'groundColor': 0x005F7D},
+	'Night': { 'skyColor': 0x575db6, 'groundColor': 0x0a0b38},
+};
+
+const dayTimeOptions = [
+	'Sunrise',
+	'Noon',
+	'Sunset',
+	'Night',
+
+];
+const gui = new dat.GUI
+const guiData = {
+	modelFileName: modelFileList[ 'Barge' ],
+    bgColor:  0xFFFFFF,
+	dayTimeOption: 'Noon',
+	dayTime: dayTimeList['Noon'],
+	toggleEdit: false,
+
+};
+renderer.setClearColor( guiData.bgColor, 1 )
+gui.add( guiData, 'modelFileName', modelFileList ).name( 'Asset' )
+gui.addColor( guiData, 'bgColor' ).name( 'Background color' ).onChange(() => renderer.setClearColor( guiData.bgColor, 1 )
+)
+gui.add( guiData, 'dayTimeOption', dayTimeOptions ).name( 'Daytime' ).onChange((e) => { 
+	scene.remove(light);
+	light =  new THREE.HemisphereLight( dayTimeList[ e as keyof DayTimeList ].skyColor,
+	dayTimeList[ e as keyof DayTimeList ].groundColor, 2 )
+	scene.add(light);
+})
+gui.add( guiData, 'toggleEdit').name( 'Edit' )
 
 const width = window.innerWidth
 const height = window.innerHeight
-
-const largeBoxUrl = new URL('../assets/box-large.gltf', import.meta.url)
 
 renderer.setSize(width, height)
 
@@ -34,8 +75,8 @@ const camera = new THREE.PerspectiveCamera(
 	1000
 )
 
-const light = new THREE.DirectionalLight(0xFFFFFF, 1)
-light.position.set(1, 4, 2)
+let light =  new THREE.HemisphereLight( guiData.dayTime.skyColor, guiData.dayTime.groundColor, 2 );
+light.position.set(1, 1, 1)
 
 scene.add(light)
 
@@ -93,40 +134,59 @@ window.addEventListener('mousemove', function (e) {
 				return (obj.position.x === highlightMesh.position.x)
 					&& (obj.position.z === highlightMesh.position.z)
 			})
-			if (!objectExist) highlightMesh.material.color.setHex(0xFFFFFF)
-			else highlightMesh.material.color.setHex(0xFF0000)
+			if(guiData.bgColor == 0xffffff) highlightMesh.material.color.setHex(0x000000)
+
+			if (!objectExist && guiData.bgColor !== 0xffffff) highlightMesh.material.color.setHex(0xFFFFFF)
+			if (objectExist) highlightMesh.material.color.setHex(0xFF0000)
+
 		}
 	})
 })
 
-window.addEventListener('mousedown', function () {
-	const objectExist = objects.find(function (obj) {
-		return (obj.position.x === highlightMesh.position.x)
-			&& (obj.position.z === highlightMesh.position.z)
-	})
-console.log(guiData.modelFileName)
-	if (!objectExist) {
+window.addEventListener('click', function () {
+if(guiData.toggleEdit === false){
+	// var intersects = raycaster.intersectObject(scene, true);
 
-		intersects.forEach(function (intersect) {
-			if (intersect.object.name === 'ground') {
+if (intersects.length > 0) {
+	
+    var object = intersects[0].object;
+    object.material.color.set( Math.random() * 0xffffff );
+}
+}
+else {
 
-				assetLoader.load(guiData.modelFileName, function (gltf) {
-					const model = gltf.scene.clone();
-					scene.add(model);
-					objects.push(model)
-					model.position.copy(highlightMesh.position)
-					return model
-				}, undefined, function (error) {
-					console.error(error)
-				})
 
-				highlightMesh.material.color.setHex(0xFF0000)
-			}
-		})
-	}
+
+
+
+
+const objectExist = objects.find(function (obj) {
+	return (obj.position.x === highlightMesh.position.x)
+		&& (obj.position.z === highlightMesh.position.z)
 })
 
-const assetLoader = new GLTFLoader();
+if (!objectExist && guiData.toggleEdit ) {
+
+	intersects.forEach(function (intersect) {
+		if (intersect.object.name === 'ground') {
+
+			assetLoader.load(guiData.modelFileName, function (gltf) {
+				const model = gltf.scene.clone();
+				scene.add(model);
+				objects.push(model)
+				model.position.copy(highlightMesh.position)
+				return model
+			}, undefined, function (error) {
+				console.error(error)
+			})
+
+			highlightMesh.material.color.setHex(0xFF0000)
+		}
+	})
+}
+}
+})
+
 
 function animate() {
 	renderer.render(scene, camera)
@@ -139,14 +199,4 @@ window.addEventListener('resize', function () {
 	camera.updateProjectionMatrix();
 	renderer.setSize(width, height)
 })
-
-// gui 
-const gui = new dat.GUI
-const guiData = {
-	modelFileName: modelFileList[ 'large box' ],
-
-};
-
-gui.add( guiData, 'modelFileName', modelFileList ).name( 'Model' )
-
 
